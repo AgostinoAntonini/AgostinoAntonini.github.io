@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab — PCA on the Euro Yield Curve · Agostino Antonini</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink:        #0f0f0f;
+      --ink-light:  #4a4a4a;
+      --ink-faint:  #9a9a9a;
+      --paper:      #fafaf8;
+      --rule:       #d8d4cc;
+      --accent:     #1a3a5c;
+      --accent-mid: #2e5f8a;
+      --code-bg:    #f0ede8;
+      --serif:      'EB Garamond', Georgia, serif;
+      --sans:       'Inter', system-ui, sans-serif;
+      --mono:       'JetBrains Mono', 'Courier New', monospace;
+      --max:        780px;
+      --side:       clamp(1.5rem, 5vw, 3rem);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 var(--side);
+    }
+
+    /* ── Top nav ── */
+    .topbar {
+      padding: 1.2rem 0;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .back-link {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--ink-faint);
+      transition: color 0.2s;
+    }
+
+    .back-link:hover { color: var(--accent); }
+
+    /* ── Header ── */
+    .lab-header {
+      padding: 3.5rem 0 2.5rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .lab-tag {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent-mid);
+      margin-bottom: 0.8rem;
+    }
+
+    .lab-title {
+      font-family: var(--serif);
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 400;
+      line-height: 1.15;
+      color: var(--ink);
+      margin-bottom: 1.2rem;
+    }
+
+    .lab-meta {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      font-size: 0.78rem;
+      color: var(--ink-faint);
+    }
+
+    .meta-item strong {
+      font-weight: 500;
+      color: var(--ink-light);
+    }
+
+    /* ── Body sections ── */
+    .lab-section {
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .lab-section:last-of-type { border-bottom: none; }
+
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.2rem;
+    }
+
+    .section-title {
+      font-family: var(--serif);
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--ink);
+      margin-bottom: 0.9rem;
+    }
+
+    p {
+      font-size: 0.92rem;
+      color: var(--ink-light);
+      line-height: 1.8;
+      margin-bottom: 1rem;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Insight callout ── */
+    .insight {
+      border-left: 2px solid var(--accent);
+      padding: 0.8rem 1.2rem;
+      margin: 1.5rem 0;
+      background: rgba(26, 58, 92, 0.04);
+    }
+
+    .insight p {
+      font-family: var(--serif);
+      font-size: 1rem;
+      font-style: italic;
+      color: var(--ink);
+      margin: 0;
+    }
+
+    /* ── Charts ── */
+    .chart {
+      margin: 1.8rem 0;
+    }
+
+    .chart img {
+      width: 100%;
+      border: 1px solid var(--rule);
+      display: block;
+    }
+
+    .chart-caption {
+      font-size: 0.75rem;
+      color: var(--ink-faint);
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin: 1.8rem 0;
+    }
+
+    .chart-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      margin: 1.8rem 0;
+    }
+
+    /* ── Code blocks ── */
+    .code-block {
+      background: var(--code-bg);
+      border-left: 2px solid var(--accent);
+      padding: 1.2rem 1.4rem;
+      margin: 1.5rem 0;
+      overflow-x: auto;
+    }
+
+    .code-block pre {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: var(--ink);
+      white-space: pre;
+    }
+
+    .code-label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.6rem;
+    }
+
+    /* ── PC cards ── */
+    .pc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .pc-card {
+      border: 1px solid var(--rule);
+      padding: 1rem 1.1rem;
+    }
+
+    .pc-number {
+      font-family: var(--serif);
+      font-size: 1.8rem;
+      font-weight: 400;
+      color: var(--rule);
+      line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+
+    .pc-name {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent-mid);
+      margin-bottom: 0.4rem;
+    }
+
+    .pc-variance {
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      color: var(--ink);
+      margin-bottom: 0.3rem;
+    }
+
+    .pc-desc {
+      font-size: 0.8rem;
+      color: var(--ink-faint);
+      line-height: 1.5;
+    }
+
+    /* ── Footer ── */
+    footer {
+      padding: 2.5rem 0;
+      border-top: 1px solid var(--rule);
+      text-align: center;
+    }
+
+    .footer-text {
+      font-size: 0.78rem;
+      color: var(--ink-faint);
+    }
+
+    @media (max-width: 600px) {
+      .chart-grid, .pc-grid { grid-template-columns: 1fr; }
+      .chart-grid-3 { grid-template-columns: 1fr; }
+      .lab-meta { gap: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="topbar">
+    <div class="container">
+      <a href="index.html" class="back-link">← Back to portfolio</a>
+    </div>
+  </nav>
+
+  <header class="lab-header">
+    <div class="container">
+      <p class="lab-tag">Econometrics · Python · Fixed Income</p>
+      <h1 class="lab-title">Principal Component Analysis<br>on the Euro Yield Curve</h1>
+      <div class="lab-meta">
+        <span class="meta-item"><strong>Dataset</strong> &nbsp;ICE Group — Euro swap rates</span>
+        <span class="meta-item"><strong>Period</strong> &nbsp;Jan 2020 – Dec 2023</span>
+        <span class="meta-item"><strong>Maturities</strong> &nbsp;15 tenors, 1Y to 30Y</span>
+        <span class="meta-item"><strong>Tools</strong> &nbsp;Python, NumPy, pandas, matplotlib</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── 1. Context ── -->
+  <section class="lab-section">
+    <div class="container">
+      <p class="section-label">01 · Context</p>
+      <h2 class="section-title">Why apply PCA to yield curves?</h2>
+      <p>
+        A yield curve is described by fifteen data points — one yield per maturity — yet in practice these points do not move independently. When the ECB changes rates, the entire curve shifts. When inflation expectations change at the short end, the long end may barely move. This high co-movement means that most of the information in fifteen variables can be captured by far fewer underlying factors.
+      </p>
+      <p>
+        Principal Component Analysis (PCA) is a dimensionality reduction technique that identifies these underlying factors — called principal components — ordered by how much of the total variance each one explains. Applied to yield curve data, PCA consistently recovers three economically meaningful factors: <strong>level</strong>, <strong>slope</strong>, and <strong>curvature</strong>. This lab verifies that result empirically using daily Euro swap rate data from 2020 to 2023, a period that includes the sharpest rate-hiking cycle in a generation.
+      </p>
+      <div class="insight">
+        <p>The period from 2020 to 2023 is particularly instructive: it captures the zero-rate environment, the inflationary shock of 2022, and the ECB's tightening response — making it an unusually rich dataset for studying yield curve dynamics.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. Data ── -->
+  <section class="lab-section">
+    <div class="container">
+      <p class="section-label">02 · The Data</p>
+      <h2 class="section-title">Euro yield curve: shape and evolution</h2>
+      <p>
+        The dataset contains 1,043 daily observations across fifteen maturities (1Y, 2Y, 3Y, 4Y, 5Y, 6Y, 7Y, 8Y, 9Y, 10Y, 12Y, 15Y, 20Y, 25Y, 30Y), derived from swap-rate data published by the Intercontinental Exchange (ICE) Group — a standardized, liquid benchmark widely used by institutional fixed income investors.
+      </p>
+
+      <div class="chart-grid">
+        <div class="chart">
+          <img src="images/yield_curve_snapshot.png" alt="Euro yield curve on 2022-11-08" />
+          <p class="chart-caption">Euro yield curve on 2022-11-08 — a typical inverted short-end profile during the tightening cycle</p>
+        </div>
+        <div class="chart">
+          <img src="images/yields_over_time.png" alt="Yields over time 2020-2024" />
+          <p class="chart-caption">Selected maturities over time — the 2022 rate shock is clearly visible across the entire curve</p>
+        </div>
+      </div>
+
+      <p>
+        The time series chart reveals the defining feature of this period: yields were negative or near-zero from 2020 through early 2022, then surged dramatically as the ECB began its tightening cycle. The short end (1Y, 2Y) rose faster than the long end, compressing and eventually inverting the curve — a pattern consistent with a market pricing in high short-term rates expected to normalize over time.
+      </p>
+
+      <div class="code-block">
+        <p class="code-label">Python — Loading and preparing the data</p>
+        <pre>import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+df = pd.read_excel('Lab8_data.xlsx', index_col=0)
+maturities = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30])
+
+# Compute daily yield changes
+dY = df - df.shift(1)
+dY = dY.dropna()
+
+# Variance-covariance matrix of yield changes
+cov_dY = dY.cov()</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. PCA ── -->
+  <section class="lab-section">
+    <div class="container">
+      <p class="section-label">03 · PCA Results</p>
+      <h2 class="section-title">Three components explain almost everything</h2>
+      <p>
+        PCA is applied to the variance-covariance matrix of <em>daily yield changes</em> rather than yield levels, which is standard in fixed income practice since it captures how the curve moves rather than where it sits. The eigendecomposition is computed via <code>numpy.linalg.eigh</code>, which is optimised for symmetric matrices.
+      </p>
+
+      <div class="chart-grid">
+        <div class="chart">
+          <img src="images/eigenvalues.png" alt="Eigenvalues of the covariance matrix" />
+          <p class="chart-caption">Eigenvalues — the first dominates by an order of magnitude</p>
+        </div>
+        <div class="chart">
+          <img src="images/variance_explained.png" alt="Fraction of variance explained by each component" />
+          <p class="chart-caption">Variance explained — PC1 alone accounts for ~86% of total variance</p>
+        </div>
+      </div>
+
+      <div class="pc-grid">
+        <div class="pc-card">
+          <div class="pc-number">01</div>
+          <p class="pc-name">Level</p>
+          <p class="pc-variance">~86% of variance</p>
+          <p class="pc-desc">Parallel shifts of the entire curve. When rates rise or fall across all maturities simultaneously.</p>
+        </div>
+        <div class="pc-card">
+          <div class="pc-number">02</div>
+          <p class="pc-name">Slope</p>
+          <p class="pc-variance">~9% of variance</p>
+          <p class="pc-desc">Changes in the steepness of the curve. Short and long ends move in opposite directions.</p>
+        </div>
+        <div class="pc-card">
+          <div class="pc-number">03</div>
+          <p class="pc-name">Curvature</p>
+          <p class="pc-variance">~3% of variance</p>
+          <p class="pc-desc">Butterfly movements. The middle of the curve moves relative to the short and long ends.</p>
+        </div>
+      </div>
+
+      <div class="insight">
+        <p>Together, three components explain over 98% of the total variance in daily yield changes across fifteen maturities — confirming that the Euro yield curve, despite its dimensionality, is driven by a small number of underlying risk factors.</p>
+      </div>
+
+      <div class="code-block">
+        <p class="code-label">Python — Eigendecomposition of the covariance matrix</p>
+        <pre>vals_dY, vecs_dY = np.linalg.eigh(cov_dY)
+
+# Sort by descending eigenvalue
+vals_dY = np.flip(vals_dY)
+vecs_dY = np.flip(vecs_dY, axis=1)
+
+# First three eigenvectors (principal components)
+x1 = vecs_dY[:, 0]   # Level
+x2 = vecs_dY[:, 1]   # Slope
+x3 = vecs_dY[:, 2]   # Curvature
+
+# Fraction of variance explained
+variance_explained = 100 * vals_dY / vals_dY.sum()</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4. Eigenvectors ── -->
+  <section class="lab-section">
+    <div class="container">
+      <p class="section-label">04 · The Principal Components</p>
+      <h2 class="section-title">Level, slope and curvature — visualised</h2>
+      <p>
+        Each eigenvector describes how each maturity loads onto that component. The shape of the eigenvector is what gives it its economic interpretation.
+      </p>
+
+      <div class="chart-grid-3">
+        <div class="chart">
+          <img src="images/pc1_level.png" alt="First eigenvector - Level" />
+          <p class="chart-caption">PC1 — Level: uniformly positive loadings across all maturities</p>
+        </div>
+        <div class="chart">
+          <img src="images/pc2_slope.png" alt="Second eigenvector - Slope" />
+          <p class="chart-caption">PC2 — Slope: negative at short end, positive at long end</p>
+        </div>
+        <div class="chart">
+          <img src="images/pc3_curvature.png" alt="Third eigenvector - Curvature" />
+          <p class="chart-caption">PC3 — Curvature: oscillates, capturing mid-curve movements</p>
+        </div>
+      </div>
+
+      <p>
+        The level component (PC1) has near-uniform positive loadings across all maturities, confirming it captures parallel shifts — when this factor moves, the entire curve rises or falls together. The slope component (PC2) is negative at short maturities and positive at long ones, reflecting steepening or flattening dynamics. The curvature component (PC3) oscillates, capturing movements where the belly of the curve moves relative to the wings — the classic fixed income "butterfly" trade.
+      </p>
+      <p>
+        These shapes are not imposed by the model. They emerge directly from the data, which makes their alignment with well-known fixed income intuition a meaningful empirical validation.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── 5. Reconstruction ── -->
+  <section class="lab-section">
+    <div class="container">
+      <p class="section-label">05 · Reconstruction</p>
+      <h2 class="section-title">How well do three factors reconstruct actual curve movements?</h2>
+      <p>
+        To validate the PCA decomposition, each daily yield curve movement is reconstructed progressively — first using PC1 only, then adding PC2, then PC3. The factor scores (projections of the actual movement onto each eigenvector) are computed as inner products.
+      </p>
+
+      <div class="code-block">
+        <p class="code-label">Python — Projecting onto principal components</p>
+        <pre>dy = dY.iloc[0].values   # Yield change on a given day
+
+# Factor scores: how much each PC contributes
+f1 = dy @ x1
+f2 = dy @ x2
+f3 = dy @ x3
+
+# Progressive reconstruction
+recon1 = f1 * x1
+recon2 = f1 * x1 + f2 * x2
+recon3 = f1 * x1 + f2 * x2 + f3 * x3</pre>
+      </div>
+
+      <div class="chart">
+        <img src="images/reconstruction.png" alt="Reconstruction of yield curve movement on 2020-01-03" />
+        <p class="chart-caption">Reconstruction of yield curve movement on 2020-01-03 — adding each PC progressively closes the gap with the actual curve movement (black line)</p>
+      </div>
+
+      <p>
+        The reconstruction plot shows that PC1 alone (blue dashed) already captures the broad direction of the move. Adding PC2 (orange) corrects for differences between short and long end. PC3 (green) closes most of the remaining gap. The three-component reconstruction tracks the actual curve movement closely across all fifteen maturities.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── 6. Takeaway ── -->
+  <section class="lab-section">
+    <div class="container">
+      <p class="section-label">06 · Key Takeaway</p>
+      <h2 class="section-title">What this means in practice</h2>
+      <p>
+        The result that three factors explain over 98% of yield curve variance is not merely a mathematical curiosity — it is the empirical foundation behind how fixed income desks manage interest rate risk. Duration hedging addresses PC1 (level). Curve trades — steepeners and flatteners — target PC2 (slope). Butterfly trades isolate PC3 (curvature).
+      </p>
+      <p>
+        A rates portfolio manager who understands the PCA structure of the yield curve can decompose any position into its level, slope, and curvature exposures — and hedge each independently. This lab demonstrates that decomposition empirically, using real market data across one of the most volatile rate environments in recent history.
+      </p>
+      <div class="insight">
+        <p>The 2022 tightening cycle — visible as a near-vertical spike in the yields-over-time chart — provides an unusually clean test of the level factor: virtually the entire move in that period was a parallel upward shift, captured almost entirely by PC1 alone.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p class="footer-text">
+        <a href="index.html" style="color: var(--ink-faint); text-decoration: none;">← Agostino Antonini</a>
+        &nbsp;·&nbsp; Econometrics Lab · MSc Finance, Bocconi University
+      </p>
+    </div>
+  </footer>
+
+</body>
+</html>
